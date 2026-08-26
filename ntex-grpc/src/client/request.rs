@@ -280,7 +280,7 @@ mod tests {
         let value = duration_to_grpc_timeout(timeout);
         assert_eq!(value, format!("{}u", timeout.as_micros()));
 
-        let one_hour = time::Duration::from_secs(60 * 60);
+        let one_hour = time::Duration::from_hours(1);
         let value = duration_to_grpc_timeout(one_hour);
         assert_eq!(value, format!("{}m", one_hour.as_millis()));
     }

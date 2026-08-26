@@ -112,7 +112,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -152,7 +152,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -192,7 +192,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -232,7 +232,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -272,7 +272,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -312,7 +312,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -352,7 +352,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -392,7 +392,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
@@ -432,7 +432,7 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.value, tag, wire_type, src)
+                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "value"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }

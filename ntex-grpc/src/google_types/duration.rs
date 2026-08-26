@@ -112,9 +112,9 @@ mod _priv_impl_duration {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => crate::NativeType::deserialize(&mut msg.seconds, tag, wire_type, src)
+                    1 => msg.seconds = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "seconds"))?,
-                    2 => crate::NativeType::deserialize(&mut msg.nanos, tag, wire_type, src)
+                    2 => msg.nanos = crate::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, "nanos"))?,
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }

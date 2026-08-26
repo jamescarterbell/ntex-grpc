@@ -32,7 +32,7 @@ pub enum DefaultValue<T> {
 }
 
 /// Protobuf type serializer
-pub trait NativeType: PartialEq + Default + Sized + fmt::Debug {
+pub trait NativeType<'a>: PartialEq + Default + Sized + fmt::Debug {
     const TYPE: WireType;
 
     #[inline]
@@ -42,7 +42,7 @@ pub trait NativeType: PartialEq + Default + Sized + fmt::Debug {
     }
 
     /// Deserialize from the input
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError>;
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError>;
 
     /// Check if value is default
     fn is_default(&self) -> bool {
@@ -98,15 +98,14 @@ pub trait NativeType: PartialEq + Default + Sized + fmt::Debug {
     #[inline]
     /// Deserialize protobuf field
     fn deserialize(
-        &mut self,
         _: u32,
         wtype: WireType,
         src: &mut Bytes,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<Self, DecodeError> {
         encoding::check_wire_type(Self::TYPE, wtype)?;
 
         if matches!(Self::TYPE, WireType::Varint | WireType::SixtyFourBit) {
-            self.merge(src)
+            Self::merge(src)
         } else {
             let len = encoding::decode_varint(src)? as usize;
             let mut buf = src.split_to_checked(len).ok_or_else(|| {
@@ -116,21 +115,19 @@ pub trait NativeType: PartialEq + Default + Sized + fmt::Debug {
                     src.len()
                 ))
             })?;
-            self.merge(&mut buf)
+            Self::merge(&mut buf)
         }
     }
 
-    #[inline]
-    /// Deserialize protobuf field to default value
-    fn deserialize_default(
-        tag: u32,
-        wtype: WireType,
-        src: &mut Bytes,
-    ) -> Result<Self, DecodeError> {
-        let mut value = Self::default();
-        value.deserialize(tag, wtype, src)?;
-        Ok(value)
-    }
+    // #[inline]
+    // /// Deserialize protobuf field to default value
+    // fn deserialize_default(
+    //     tag: u32,
+    //     wtype: WireType,
+    //     src: &mut Bytes,
+    // ) -> Result<Self, DecodeError> {
+    //     Self::deserialize(tag, wtype, src)
+    // }
 }
 
 /// Protobuf struct read/write operations
@@ -146,7 +143,7 @@ impl Message for () {
     fn write(&self, _: &mut BytePages) {}
 }
 
-impl<T: Message + PartialEq> NativeType for T {
+impl<T: Message + PartialEq> NativeType<'_> for T {
     const TYPE: WireType = WireType::LengthDelimited;
 
     fn value_len(&self) -> usize {
@@ -160,13 +157,12 @@ impl<T: Message + PartialEq> NativeType for T {
     }
 
     /// Deserialize from the input
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
-        *self = Message::read(src)?;
-        Ok(())
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
+        Message::read(src)
     }
 }
 
-impl NativeType for Bytes {
+impl NativeType<'_> for Bytes {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -182,9 +178,8 @@ impl NativeType for Bytes {
 
     #[inline]
     /// Deserialize from the input
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
-        *self = mem::take(src);
-        Ok(())
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
+        Ok(mem::take(src))
     }
 
     #[inline]
@@ -193,7 +188,7 @@ impl NativeType for Bytes {
     }
 }
 
-impl NativeType for String {
+impl NativeType<'_> for String {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -202,10 +197,9 @@ impl NativeType for String {
     }
 
     #[inline]
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
         if let Ok(s) = ByteString::try_from(mem::take(src)) {
-            *self = s.as_str().to_string();
-            Ok(())
+            Ok(s.as_str().to_string())
         } else {
             Err(DecodeError::new(
                 "invalid string value: data is not UTF-8 encoded",
@@ -224,7 +218,7 @@ impl NativeType for String {
     }
 }
 
-impl NativeType for ByteString {
+impl NativeType<'_> for ByteString {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -233,10 +227,9 @@ impl NativeType for ByteString {
     }
 
     #[inline]
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
         if let Ok(s) = ByteString::try_from(mem::take(src)) {
-            *self = s;
-            Ok(())
+            Ok(s)
         } else {
             Err(DecodeError::new(
                 "invalid string value: data is not UTF-8 encoded",
@@ -255,7 +248,7 @@ impl NativeType for ByteString {
     }
 }
 
-impl NativeType for Arc<str> {
+impl NativeType<'_> for Arc<str> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -264,10 +257,9 @@ impl NativeType for Arc<str> {
     }
 
     #[inline]
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
         if let Ok(s) = ByteString::try_from(mem::take(src)) {
-            *self = Arc::from(s.as_str());
-            Ok(())
+            Ok(Arc::from(s.as_str()))
         } else {
             Err(DecodeError::new(
                 "invalid string value: data is not UTF-8 encoded",
@@ -286,7 +278,7 @@ impl NativeType for Arc<str> {
     }
 }
 
-impl<T: NativeType> NativeType for Option<T> {
+impl<'a, T: NativeType<'a>> NativeType<'a> for Option<T> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -300,7 +292,7 @@ impl<T: NativeType> NativeType for Option<T> {
 
     #[inline]
     /// Deserialize from the input
-    fn merge(&mut self, _: &mut Bytes) -> Result<(), DecodeError> {
+    fn merge(_: &mut Bytes) -> Result<Self, DecodeError> {
         Err(DecodeError::new(
             "Cannot directly call deserialize for Option<T>",
         ))
@@ -309,15 +301,11 @@ impl<T: NativeType> NativeType for Option<T> {
     #[inline]
     /// Deserialize protobuf field
     fn deserialize(
-        &mut self,
         tag: u32,
         wtype: WireType,
         src: &mut Bytes,
-    ) -> Result<(), DecodeError> {
-        let mut value: T = Default::default();
-        value.deserialize(tag, wtype, src)?;
-        *self = Some(value);
-        Ok(())
+    ) -> Result<Self, DecodeError> {
+        Ok(Some(T::deserialize(tag, wtype, src)?))
     }
 
     #[inline]
@@ -345,7 +333,7 @@ impl<T: NativeType> NativeType for Option<T> {
     }
 }
 
-impl NativeType for Vec<u8> {
+impl NativeType<'_> for Vec<u8> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -361,9 +349,8 @@ impl NativeType for Vec<u8> {
 
     #[inline]
     /// Deserialize from the input
-    fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
-        *self = Vec::from(&src[..]);
-        Ok(())
+    fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
+        Ok(Vec::from(&src[..]))
     }
 
     #[inline]
@@ -372,7 +359,7 @@ impl NativeType for Vec<u8> {
     }
 }
 
-impl<T: NativeType> NativeType for Vec<T> {
+impl<'a, T: NativeType<'a>> NativeType<'a> for Vec<T> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     #[inline]
@@ -381,33 +368,29 @@ impl<T: NativeType> NativeType for Vec<T> {
 
     #[inline]
     /// Deserialize from the input
-    fn merge(&mut self, _: &mut Bytes) -> Result<(), DecodeError> {
+    fn merge(_: &mut Bytes) -> Result<Self, DecodeError> {
         Err(DecodeError::new("Cannot directly call merge for Vec<T>"))
     }
 
     /// Deserialize protobuf field
     fn deserialize(
-        &mut self,
         tag: u32,
         wtype: WireType,
         src: &mut Bytes,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<Self, DecodeError> {
+        let mut vec = Vec::new();
         if T::TYPE == WireType::Varint {
             let len = encoding::decode_varint(src)? as usize;
             let mut buf = src
                 .split_to_checked(len)
                 .ok_or_else(DecodeError::incomplete)?;
             while !buf.is_empty() {
-                let mut value: T = Default::default();
-                value.merge(&mut buf)?;
-                self.push(value);
+                vec.push(T::merge(&mut buf)?);
             }
         } else {
-            let mut value: T = Default::default();
-            value.deserialize(tag, wtype, src)?;
-            self.push(value);
+            vec.push(T::deserialize(tag, wtype, src)?);
         }
-        Ok(())
+        Ok(vec)
     }
 
     /// Serialize protobuf field
@@ -451,14 +434,14 @@ impl<T: NativeType> NativeType for Vec<T> {
 
 macro_rules! hashmap {
     ($ty:ident) => {
-        impl<K: NativeType + Eq + Hash, V: NativeType, S: BuildHasher + Default> NativeType
+        impl<'a, K: NativeType<'a> + Eq + Hash, V: NativeType<'a>, S: BuildHasher + Default> NativeType<'a>
             for $ty<K, V, S>
         {
             const TYPE: WireType = WireType::LengthDelimited;
 
             #[inline]
             /// Deserialize from the input
-            fn merge(&mut self, _: &mut Bytes) -> Result<(), DecodeError> {
+            fn merge( _: &mut Bytes) -> Result<Self, DecodeError> {
                 Err(DecodeError::new("Cannot directly call merge for Map<K, V>"))
             }
 
@@ -473,11 +456,10 @@ macro_rules! hashmap {
 
             /// Deserialize protobuf field
             fn deserialize(
-                &mut self,
                 _: u32,
                 wtype: WireType,
                 src: &mut Bytes,
-            ) -> Result<(), DecodeError> {
+            ) -> Result<Self, DecodeError> {
                 encoding::check_wire_type(Self::TYPE, wtype)?;
 
                 let len = encoding::decode_varint(src)? as usize;
@@ -494,13 +476,14 @@ macro_rules! hashmap {
                 while !buf.is_empty() {
                     let (tag, wire_type) = encoding::decode_key(&mut buf)?;
                     match tag {
-                        1 => NativeType::deserialize(&mut key, 1, wire_type, &mut buf)?,
-                        2 => NativeType::deserialize(&mut val, 2, wire_type, &mut buf)?,
+                        1 => key = K::deserialize(1, wire_type, &mut buf)?,
+                        2 => val = V::deserialize(2, wire_type, &mut buf)?,
                         _ => return Err(DecodeError::new("Map deserialization error")),
                     }
                 }
-                self.insert(key, val);
-                Ok(())
+                let mut map = Self::default();
+                map.insert(key, val);
+                Ok(map)
             }
 
             /// Serialize protobuf field
@@ -563,7 +546,7 @@ macro_rules! varint {
 
     ($ty:ty, $default:expr, to_uint64($slf:ident) $to_uint64:expr, from_uint64($val:ident) $from_uint64:expr) => (
 
-        impl NativeType for $ty {
+        impl<'a> NativeType<'a> for $ty {
             const TYPE: WireType = WireType::Varint;
 
             #[inline]
@@ -587,9 +570,8 @@ macro_rules! varint {
             }
 
             #[inline]
-            fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
-                *self = encoding::decode_varint(src).map(|$val| $from_uint64)?;
-                Ok(())
+            fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
+                encoding::decode_varint(src).map(|$val| $from_uint64)
             }
         }
     );
@@ -612,7 +594,7 @@ macro_rules! fixed_width {
      $default:expr,
      $put:expr,
      $get:expr) => {
-        impl NativeType for $ty {
+        impl<'a> NativeType<'a> for $ty {
             const TYPE: WireType = $wire_type;
 
             #[inline]
@@ -636,12 +618,12 @@ macro_rules! fixed_width {
             }
 
             #[inline]
-            fn merge(&mut self, src: &mut Bytes) -> Result<(), DecodeError> {
+            fn merge(src: &mut Bytes) -> Result<Self, DecodeError> {
                 if src.len() < $width {
                     return Err(DecodeError::new("Buffer underflow"));
                 }
-                *self = $get(src);
-                Ok(())
+                let value = $get(src);
+                Ok(value)
             }
         }
     };
@@ -690,10 +672,10 @@ mod tests {
             while !src.is_empty() {
                 let (tag, wire_type) = encoding::decode_key(src)?;
                 match tag {
-                    1 => NativeType::deserialize(&mut msg.f, tag, wire_type, src)?,
-                    2 => NativeType::deserialize(&mut msg.props, tag, wire_type, src)?,
-                    3 => NativeType::deserialize(&mut msg.b, tag, wire_type, src)?,
-                    4 => NativeType::deserialize(&mut msg.opt, tag, wire_type, src)?,
+                    1 => msg.f = NativeType::deserialize(tag, wire_type, src)?,
+                    2 => msg.props = NativeType::deserialize(tag, wire_type, src)?,
+                    3 => msg.b = NativeType::deserialize(tag, wire_type, src)?,
+                    4 => msg.opt = NativeType::deserialize(tag, wire_type, src)?,
                     _ => encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -736,9 +718,8 @@ mod tests {
         assert_eq!(msg, msg2);
 
         let mut buf2 = buf2.freeze();
-        let mut msg3 = TestMessage::default();
         let (tag, wire_type) = encoding::decode_key(&mut buf2).unwrap();
-        msg3.deserialize(tag, wire_type, &mut buf2).unwrap();
+        let msg3 = TestMessage::deserialize(tag, wire_type, &mut buf2).unwrap();
         assert_eq!(msg, msg3);
     }
 }
