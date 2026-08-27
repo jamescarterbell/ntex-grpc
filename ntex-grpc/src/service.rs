@@ -17,23 +17,25 @@ pub trait MethodDef {
 
     const PATH: ByteString;
 
-    type Input<'i>: Message<'i> where Self: 'i;
+    /// The owned variant of the input message.
+    type Input: for<'i> Message<'i>;
 
-    type Output<'o>: Message<'o>;
+    /// The borrowed variant of the output message.
+    type Output: for<'o> Message<'o>;
 
     #[inline]
-    fn decode<'m>(&'m self, buf: &mut Bytes) -> Result<Self::Input<'m>, DecodeError> {
+    fn decode<'m>(&'m self, buf: &mut Bytes) -> Result<Self::Input, DecodeError> {
         Message::read(buf)
     }
 
     #[inline]
-    fn encode(&self, val: Self::Output<'_>, buf: &mut BytePages) {
+    fn encode(&self, val: Self::Output, buf: &mut BytePages) {
         val.write(buf);
     }
 
     #[doc(hidden)]
     #[inline]
-    fn server_result<'m, T: MethodResult<Self::Output<'m>>>(&'m self, val: T) -> Self::Output<'m> {
+    fn server_result<'m, T: MethodResult<Self::Output>>(&'m self, val: T) -> Self::Output {
         val.into()
     }
 }

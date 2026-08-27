@@ -6,7 +6,7 @@ use ntex_h2::{self as h2};
 use ntex_http::{HeaderMap, Method, header};
 
 use super::{Client, ClientError, Transport, request::RequestContext, request::Response};
-use crate::{DecodeError, GrpcStatus, Message, consts, service::MethodDef, utils::Data};
+use crate::{DecodeError, GrpcStatus, Message, client::request::ResponseView, consts, service::MethodDef, utils::Data};
 
 impl<T: MethodDef> Transport<T> for Client {
     type Error = Error<ClientError>;
@@ -14,10 +14,20 @@ impl<T: MethodDef> Transport<T> for Client {
     #[inline]
     async fn request<'c>(
         &'c self,
-        val: &T::Input<'c>,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
-    ) -> Result<Response<'c, T>, Self::Error> {
+    ) -> Result<Response<T>, Self::Error>
+    where T: 'c {
         Transport::request(&self.0, val, ctx).await
+    }
+    
+    async fn request_view<'c>(
+        &'c self,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
+        ctx: &mut RequestContext,
+    ) -> Result<ResponseView<'c, T>, Self::Error>
+    where T: 'c  {
+        Transport::request_view(&self.0, val, ctx).await
     }
 }
 
@@ -27,9 +37,42 @@ impl<T: MethodDef> Transport<T> for h2::client::Client {
     #[inline]
     async fn request<'c>(
         &'c self,
-        val: &T::Input<'c>,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
-    ) -> Result<Response<'c, T>, Self::Error> {
+    ) -> Result<Response<T>, Self::Error> {
+        Ok(Transport::request(
+            &self.client().await.map_err(|e| e.map(ClientError::from))?,
+            val,
+            ctx,
+        ).await?
+        .upcast_lifetime())
+    }
+
+    #[inline]
+    async fn request_view<'c>(
+        &'c self,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
+        ctx: &mut RequestContext,
+    ) -> Result<ResponseView<'c, T>, Self::Error> {
+        Ok(Transport::request_view(
+            &self.client().await.map_err(|e| e.map(ClientError::from))?,
+            val,
+            ctx,
+        ).await?
+        .upcast_lifetime())
+    }
+}
+
+impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
+    type Error = Error<ClientError>;
+
+    #[allow(clippy::too_many_lines)]
+    async fn request<'c>(
+        &'c self,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
+        ctx: &mut RequestContext,
+    ) -> Result<Response<T>, Self::Error> {
+        let val: <T as MethodDef>::InputView<'c> = val.into();
         let len = val.encoded_len();
         let mut buf = BytePages::default();
         buf.put_u8(0); // compression
@@ -160,7 +203,7 @@ impl<T: MethodDef> Transport<T> for h2::client::Client {
                     return Err(Error::from(ClientError::UnexpectedEof(None, hdrs)));
                 };
 
-                return match <T::Output<'c> as Message>::read(&mut block) {
+                return match <T::Output as Message>::read(&mut block) {
                     Ok(output) => Ok(Response {
                         output,
                         trailers,
@@ -173,18 +216,16 @@ impl<T: MethodDef> Transport<T> for h2::client::Client {
             }
         }
         .await
+        .map_err(|e| e.set_service(self.service()))
     }
-}
-
-impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
-    type Error = Error<ClientError>;
 
     #[allow(clippy::too_many_lines)]
-    async fn request<'c>(
+    async fn request_view<'c>(
         &'c self,
-        val: &T::Input<'c>,
+        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
-    ) -> Result<Response<'c, T>, Self::Error> {
+    ) -> Result<ResponseView<'c, T>, Self::Error> {
+        let val: <<<T as MethodDef>::Input as Message<'c>>::InputView<'c>> = val.into();
         let len = val.encoded_len();
         let mut buf = BytePages::default();
         buf.put_u8(0); // compression
@@ -315,9 +356,10 @@ impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
                     return Err(Error::from(ClientError::UnexpectedEof(None, hdrs)));
                 };
 
-                return match <T::Output<'c> as Message>::read(&mut block) {
-                    Ok(output) => Ok(Response {
+                return match <T::OutputView<'c> as Message>::read(&mut block) {
+                    Ok(output) => Ok(ResponseView {
                         output,
+                        data: block,
                         trailers,
                         req_size,
                         headers: hdrs,
