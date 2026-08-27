@@ -13,7 +13,7 @@ pub use crate::encoding::WireType;
 use crate::encoding::{self, DecodeError};
 
 /// Protobuf struct read/write operations
-pub trait Message: Default + Sized + fmt::Debug {
+pub trait Message<'a>: Default + Sized + fmt::Debug {
     /// Decodes an instance of the message from a buffer
     fn read(src: &mut Bytes) -> Result<Self, DecodeError>;
 
@@ -97,11 +97,7 @@ pub trait NativeType<'a>: PartialEq + Default + Sized + fmt::Debug {
 
     #[inline]
     /// Deserialize protobuf field
-    fn deserialize(
-        _: u32,
-        wtype: WireType,
-        src: &mut Bytes,
-    ) -> Result<Self, DecodeError> {
+    fn deserialize(_: u32, wtype: WireType, src: &mut Bytes) -> Result<Self, DecodeError> {
         encoding::check_wire_type(Self::TYPE, wtype)?;
 
         if matches!(Self::TYPE, WireType::Varint | WireType::SixtyFourBit) {
@@ -131,7 +127,7 @@ pub trait NativeType<'a>: PartialEq + Default + Sized + fmt::Debug {
 }
 
 /// Protobuf struct read/write operations
-impl Message for () {
+impl<'a> Message<'a> for () {
     fn encoded_len(&self) -> usize {
         0
     }
@@ -143,7 +139,7 @@ impl Message for () {
     fn write(&self, _: &mut BytePages) {}
 }
 
-impl<T: Message + PartialEq> NativeType<'_> for T {
+impl<'a, T: Message<'a> + PartialEq> NativeType<'a> for T {
     const TYPE: WireType = WireType::LengthDelimited;
 
     fn value_len(&self) -> usize {
@@ -300,11 +296,7 @@ impl<'a, T: NativeType<'a>> NativeType<'a> for Option<T> {
 
     #[inline]
     /// Deserialize protobuf field
-    fn deserialize(
-        tag: u32,
-        wtype: WireType,
-        src: &mut Bytes,
-    ) -> Result<Self, DecodeError> {
+    fn deserialize(tag: u32, wtype: WireType, src: &mut Bytes) -> Result<Self, DecodeError> {
         Ok(Some(T::deserialize(tag, wtype, src)?))
     }
 
@@ -373,11 +365,7 @@ impl<'a, T: NativeType<'a>> NativeType<'a> for Vec<T> {
     }
 
     /// Deserialize protobuf field
-    fn deserialize(
-        tag: u32,
-        wtype: WireType,
-        src: &mut Bytes,
-    ) -> Result<Self, DecodeError> {
+    fn deserialize(tag: u32, wtype: WireType, src: &mut Bytes) -> Result<Self, DecodeError> {
         let mut vec = Vec::new();
         if T::TYPE == WireType::Varint {
             let len = encoding::decode_varint(src)? as usize;
@@ -434,14 +422,14 @@ impl<'a, T: NativeType<'a>> NativeType<'a> for Vec<T> {
 
 macro_rules! hashmap {
     ($ty:ident) => {
-        impl<'a, K: NativeType<'a> + Eq + Hash, V: NativeType<'a>, S: BuildHasher + Default> NativeType<'a>
-            for $ty<K, V, S>
+        impl<'a, K: NativeType<'a> + Eq + Hash, V: NativeType<'a>, S: BuildHasher + Default>
+            NativeType<'a> for $ty<K, V, S>
         {
             const TYPE: WireType = WireType::LengthDelimited;
 
             #[inline]
             /// Deserialize from the input
-            fn merge( _: &mut Bytes) -> Result<Self, DecodeError> {
+            fn merge(_: &mut Bytes) -> Result<Self, DecodeError> {
                 Err(DecodeError::new("Cannot directly call merge for Map<K, V>"))
             }
 
@@ -455,11 +443,7 @@ macro_rules! hashmap {
             }
 
             /// Deserialize protobuf field
-            fn deserialize(
-                _: u32,
-                wtype: WireType,
-                src: &mut Bytes,
-            ) -> Result<Self, DecodeError> {
+            fn deserialize(_: u32, wtype: WireType, src: &mut Bytes) -> Result<Self, DecodeError> {
                 encoding::check_wire_type(Self::TYPE, wtype)?;
 
                 let len = encoding::decode_varint(src)? as usize;

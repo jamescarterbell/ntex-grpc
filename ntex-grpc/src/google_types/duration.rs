@@ -93,7 +93,7 @@ pub struct Duration {
 mod _priv_impl_duration {
     use super::*;
 
-    impl crate::Message for Duration {
+    impl<'m> crate::Message<'m> for Duration {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(
@@ -112,10 +112,14 @@ mod _priv_impl_duration {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.seconds = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "seconds"))?,
-                    2 => msg.nanos = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "nanos"))?,
+                    1 => {
+                        msg.seconds = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "seconds"))?
+                    }
+                    2 => {
+                        msg.nanos = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "nanos"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }

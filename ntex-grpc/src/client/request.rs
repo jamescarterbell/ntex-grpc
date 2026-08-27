@@ -99,23 +99,23 @@ fn log_error<T: Into<HttpError>>(err: T) -> HttpError {
     e
 }
 
-pub struct Request<'a, T, M>
+pub struct Request<'t, T, M>
 where
     T: Transport<M>,
-    T: 'a,
-    M: MethodDef,
+    T: 't,
+    M: MethodDef + 't,
 {
-    input: &'a M::Input,
-    transport: &'a T,
+    input: &'t M::Input<'t>,
+    transport: &'t T,
     ctx: RequestContext,
 }
 
-impl<'a, T, M> Request<'a, T, M>
+impl<'t, T, M> Request<'t, T, M>
 where
     T: Transport<M>,
-    M: MethodDef,
+    M: MethodDef + 't,
 {
-    pub fn new(transport: &'a T, input: &'a M::Input) -> Self {
+    pub fn new(transport: &'t T, input: &'t M::Input<'t>) -> Self {
         Self {
             input,
             transport,
@@ -164,7 +164,7 @@ where
     }
 
     /// Send request
-    pub async fn send(self) -> Result<Response<M>, T::Error> {
+    pub async fn send(self) -> Result<Response<'t, M>, T::Error> {
         let Request {
             input,
             transport,
@@ -209,15 +209,15 @@ fn duration_to_grpc_timeout(duration: time::Duration) -> String {
         .expect("duration is unrealistically large")
 }
 
-pub struct Response<'a, T: MethodDef> {
-    pub output: T::Output<'a>,
+pub struct Response<'t, T: MethodDef> {
+    pub output: T::Output<'t>,
     pub headers: HeaderMap,
     pub trailers: HeaderMap,
     pub req_size: usize,
     pub res_size: usize,
 }
 
-impl<'a, T: MethodDef> Response<'a, T> {
+impl<'t, T: MethodDef> Response<'t, T> {
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
@@ -229,39 +229,39 @@ impl<'a, T: MethodDef> Response<'a, T> {
     }
 
     #[inline]
-    pub fn into_inner(self) -> T::Output {
+    pub fn into_inner(self) -> T::Output<'t> {
         self.output
     }
 
     #[inline]
-    pub fn into_parts(self) -> (T::Output, HeaderMap, HeaderMap) {
+    pub fn into_parts(self) -> (T::Output<'t>, HeaderMap, HeaderMap) {
         (self.output, self.headers, self.trailers)
     }
 }
 
-impl<'a, T: MethodDef> ops::Deref for Response<'a, T> {
-    type Target = T::Output;
+impl<'t, T: MethodDef> ops::Deref for Response<'t, T> {
+    type Target = T::Output<'t>;
 
     fn deref(&self) -> &Self::Target {
         &self.output
     }
 }
 
-impl<'a, T: MethodDef> ops::DerefMut for Response<'a, T> {
+impl<'t, T: MethodDef> ops::DerefMut for Response<'t, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.output
     }
 }
 
-impl<'a, T: MethodDef> fmt::Debug for Response<'a, T>
+impl<'t, T: MethodDef> fmt::Debug for Response<'t, T>
 where
-    T::Output: fmt::Debug,
+    T::Output<'t>: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct(format!("ResponseFor<{}>", T::NAME).as_str())
             .field("output", &self.output)
             .field("headers", &self.headers)
-            .field("translers", &self.headers)
+            .field("trailers", &self.trailers)
             .finish()
     }
 }

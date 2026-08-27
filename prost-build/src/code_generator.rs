@@ -206,7 +206,7 @@ impl CodeGenerator<'_> {
         self.buf.push_str(&to_upper_camel(&message_name));
         self.buf.push_str(" {\n");
 
-        self.priv_buf.push_str("impl ::ntex_grpc::Message for ");
+        self.priv_buf.push_str("impl<'c> ::ntex_grpc::Message<'c> for ");
         self.priv_buf.push_str(&to_upper_camel(&message_name));
         self.priv_buf.push_str(" {\n");
 
@@ -229,7 +229,7 @@ impl CodeGenerator<'_> {
                 "::ntex_grpc::NativeType::serialize(&self.{field_name}, {field_no}, ::ntex_grpc::types::DefaultValue::Default, dst);",
             ));
             read.push_str(&format!(
-                "{field_no} => ::ntex_grpc::NativeType::deserialize(&mut msg.{field_name}, tag, wire_type, src)
+                "{field_no} => msg.{field_name} = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
                     .map_err(|err| err.push(STRUCT_NAME, \"{field_name}\"))?,",
             ));
             encoded_len.push_str(&format!(
@@ -268,7 +268,7 @@ impl CodeGenerator<'_> {
             ));
             read.push_str(&format!(
                 "
-               {} => ::ntex_grpc::NativeType::deserialize(&mut msg.{}, tag, wire_type, src)
+               {} => msg.{} = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
                         .map_err(|err| err.push(STRUCT_NAME, \"{}\"))?,",
                 fields.iter().map(|(field, _)| field.number()).join("| "),
                 to_snake(oneof.name()),
@@ -567,10 +567,10 @@ impl CodeGenerator<'_> {
 
         self.priv_buf.push_str(&format!(
             "
-        impl ::ntex_grpc::NativeType for {name} {{
+        impl<'a> ::ntex_grpc::NativeType<'a> for {name} {{
             const TYPE: ::ntex_grpc::WireType = ::ntex_grpc::WireType::LengthDelimited;
 
-            fn merge(&mut self, _: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<(), ::ntex_grpc::DecodeError> {{
+            fn merge(_: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<Self, ::ntex_grpc::DecodeError> {{
                 panic!(\"Not supported\")
             }}
 
@@ -590,12 +590,11 @@ impl CodeGenerator<'_> {
         self.priv_buf.push_str(&format!("
             #[inline]
             /// Decodes an instance of the message from a buffer, and merges it into self.
-            fn deserialize(&mut self, tag: u32, wire_type: ::ntex_grpc::WireType, src: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<(), ::ntex_grpc::DecodeError> {{
-                *self = match tag {{
+            fn deserialize(tag: u32, wire_type: ::ntex_grpc::WireType, src: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<Self, ::ntex_grpc::DecodeError> {{
+                match tag {{
                     {}
                     _ => unreachable!(\"invalid {}, tag: {{}}\", tag),
-                }};
-                Ok(())
+                }}
             }}\n", read.trim_end(), to_upper_camel(oneof.name())));
 
         self.priv_buf.push_str(&format!(
@@ -811,13 +810,12 @@ impl CodeGenerator<'_> {
 
         // NativeType impl
         self.priv_buf.push_str(&format!(
-            "impl ::ntex_grpc::NativeType for {} {{
+            "impl<'a> ::ntex_grpc::NativeType<'a> for {} {{
                  const TYPE: ::ntex_grpc::WireType = ::ntex_grpc::WireType::Varint;
 
                  #[inline]
-                 fn merge(&mut self, src: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<(), ::ntex_grpc::DecodeError> {{
-                     *self = ::ntex_grpc::encoding::decode_varint(src).map(|val| Self::from_i32(val as i32).unwrap_or_default())?;
-                     Ok(())
+                 fn merge(src: &mut ::ntex_grpc::Bytes) -> ::std::result::Result<Self, ::ntex_grpc::DecodeError> {{
+                     ::ntex_grpc::encoding::decode_varint(src).map(|val| Self::from_i32(val as i32).unwrap_or_default())
                  }}
 
                  #[inline]

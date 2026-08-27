@@ -190,8 +190,8 @@ fn gen_method(method: &Method, service: &Service) -> (String, String) {
         impl ::ntex_grpc::MethodDef for {def_ident} {{
             const NAME: &'static str = \"{proto_name}\";
             const PATH: ::ntex_grpc::ByteString = ::ntex_grpc::ByteString::from_static(\"{path}\");
-            type Input = {input_type};
-            type Output = {output_type};
+            type Input<'i> = {input_type};
+            type Output<'o> = {output_type};
         }}"),
         format!(
             "impl<T: ::ntex_grpc::client::Transport<{def_ident}>> {service_ident}<T> {{

@@ -100,14 +100,14 @@ impl ::ntex_grpc::MethodDef for GreeterSayHelloMethod {
     const NAME: &'static str = "SayHello";
     const PATH: ::ntex_grpc::ByteString =
         ::ntex_grpc::ByteString::from_static("/helloworld.Greeter/SayHello");
-    type Input = HelloRequest;
-    type Output = HelloReply;
+    type Input<'i> = HelloRequest;
+    type Output<'o> = HelloReply;
 }
 
 mod _priv_impl_helloworld {
     use super::*;
 
-    impl ::ntex_grpc::Message for HelloRequest {
+    impl<'c> ::ntex_grpc::Message<'c> for HelloRequest {
         #[inline]
         fn write(&self, dst: &mut ::ntex_grpc::BytePages) {
             ::ntex_grpc::NativeType::serialize(
@@ -139,12 +139,18 @@ mod _priv_impl_helloworld {
             while !src.is_empty() {
                 let (tag, wire_type) = ::ntex_grpc::encoding::decode_key(src)?;
                 match tag {
-                    1 => ::ntex_grpc::NativeType::deserialize(&mut msg.name, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "name"))?,
-                    2 => ::ntex_grpc::NativeType::deserialize(&mut msg.data1, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data1"))?,
-                    3 => ::ntex_grpc::NativeType::deserialize(&mut msg.data2, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data2"))?,
+                    1 => {
+                        msg.name = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "name"))?
+                    }
+                    2 => {
+                        msg.data1 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data1"))?
+                    }
+                    3 => {
+                        msg.data2 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data2"))?
+                    }
                     _ => ::ntex_grpc::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -180,7 +186,7 @@ mod _priv_impl_helloworld {
         }
     }
 
-    impl ::ntex_grpc::Message for HelloReply {
+    impl<'c> ::ntex_grpc::Message<'c> for HelloReply {
         #[inline]
         fn write(&self, dst: &mut ::ntex_grpc::BytePages) {
             ::ntex_grpc::NativeType::serialize(
@@ -242,24 +248,38 @@ mod _priv_impl_helloworld {
             while !src.is_empty() {
                 let (tag, wire_type) = ::ntex_grpc::encoding::decode_key(src)?;
                 match tag {
-                    1 => ::ntex_grpc::NativeType::deserialize(&mut msg.data5, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data5"))?,
-                    2 => ::ntex_grpc::NativeType::deserialize(&mut msg.data6, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data6"))?,
+                    1 => {
+                        msg.data5 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data5"))?
+                    }
+                    2 => {
+                        msg.data6 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data6"))?
+                    }
                     3 => {
-                        ::ntex_grpc::NativeType::deserialize(&mut msg.message, tag, wire_type, src)
+                        msg.message = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
                             .map_err(|err| err.push(STRUCT_NAME, "message"))?
                     }
-                    4 => ::ntex_grpc::NativeType::deserialize(&mut msg.tag, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "tag"))?,
-                    5 => ::ntex_grpc::NativeType::deserialize(&mut msg.data1, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data1"))?,
-                    6 => ::ntex_grpc::NativeType::deserialize(&mut msg.data2, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data2"))?,
-                    7 => ::ntex_grpc::NativeType::deserialize(&mut msg.data3, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data3"))?,
-                    8 => ::ntex_grpc::NativeType::deserialize(&mut msg.data4, tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "data4"))?,
+                    4 => {
+                        msg.tag = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "tag"))?
+                    }
+                    5 => {
+                        msg.data1 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data1"))?
+                    }
+                    6 => {
+                        msg.data2 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data2"))?
+                    }
+                    7 => {
+                        msg.data3 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data3"))?
+                    }
+                    8 => {
+                        msg.data4 = ::ntex_grpc::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "data4"))?
+                    }
                     _ => ::ntex_grpc::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -320,17 +340,15 @@ mod _priv_impl_helloworld {
         }
     }
 
-    impl ::ntex_grpc::NativeType for DocumentType {
+    impl<'a> ::ntex_grpc::NativeType<'a> for DocumentType {
         const TYPE: ::ntex_grpc::WireType = ::ntex_grpc::WireType::Varint;
 
         #[inline]
         fn merge(
-            &mut self,
             src: &mut ::ntex_grpc::Bytes,
-        ) -> ::std::result::Result<(), ::ntex_grpc::DecodeError> {
-            *self = ::ntex_grpc::encoding::decode_varint(src)
-                .map(|val| Self::from_i32(val as i32).unwrap_or_default())?;
-            Ok(())
+        ) -> ::std::result::Result<Self, ::ntex_grpc::DecodeError> {
+            ::ntex_grpc::encoding::decode_varint(src)
+                .map(|val| Self::from_i32(val as i32).unwrap_or_default())
         }
 
         #[inline]

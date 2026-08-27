@@ -99,7 +99,7 @@ pub struct BytesValue {
 mod _priv_impl_wrappers {
     use super::*;
 
-    impl crate::Message for DoubleValue {
+    impl<'a> crate::Message<'a> for DoubleValue {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -112,8 +112,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -139,7 +141,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for FloatValue {
+    impl<'a> crate::Message<'a> for FloatValue {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -152,8 +154,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -179,7 +183,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for Int64Value {
+    impl<'a> crate::Message<'a> for Int64Value {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -192,8 +196,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -219,7 +225,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for UInt64Value {
+    impl<'a> crate::Message<'a> for UInt64Value {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -232,8 +238,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -259,7 +267,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for Int32Value {
+    impl<'a> crate::Message<'a> for Int32Value {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -272,8 +280,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -299,7 +309,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for UInt32Value {
+    impl<'a> crate::Message<'a> for UInt32Value {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -312,8 +322,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -339,7 +351,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for BoolValue {
+    impl<'a> crate::Message<'a> for BoolValue {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -352,8 +364,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -379,7 +393,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for StringValue {
+    impl<'a> crate::Message<'a> for StringValue {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -392,8 +406,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
@@ -419,7 +435,7 @@ mod _priv_impl_wrappers {
         }
     }
 
-    impl crate::Message for BytesValue {
+    impl<'a> crate::Message<'a> for BytesValue {
         #[inline]
         fn write(&self, dst: &mut crate::BytePages) {
             crate::NativeType::serialize(&self.value, 1, crate::types::DefaultValue::Default, dst);
@@ -432,8 +448,10 @@ mod _priv_impl_wrappers {
             while !src.is_empty() {
                 let (tag, wire_type) = crate::encoding::decode_key(src)?;
                 match tag {
-                    1 => msg.value = crate::NativeType::deserialize(tag, wire_type, src)
-                        .map_err(|err| err.push(STRUCT_NAME, "value"))?,
+                    1 => {
+                        msg.value = crate::NativeType::deserialize(tag, wire_type, src)
+                            .map_err(|err| err.push(STRUCT_NAME, "value"))?
+                    }
                     _ => crate::encoding::skip_field(wire_type, tag, src)?,
                 }
             }
