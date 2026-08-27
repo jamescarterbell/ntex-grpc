@@ -16,11 +16,11 @@ pub trait Transport<T: MethodDef> {
     /// Errors produced by the transport.
     type Error;
 
-    async fn request(
-        &self,
+    async fn request<'a>(
+        &'a self,
         args: &T::Input,
         ctx: &mut RequestContext,
-    ) -> Result<Response<T>, Self::Error>;
+    ) -> Result<Response<'a, T>, Self::Error>;
 }
 
 /// Client utils methods

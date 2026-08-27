@@ -12,11 +12,11 @@ impl<T: MethodDef> Transport<T> for Client {
     type Error = Error<ClientError>;
 
     #[inline]
-    async fn request(
+    async fn request<'a>(
         &self,
         val: &T::Input,
         ctx: &mut RequestContext,
-    ) -> Result<Response<T>, Self::Error> {
+    ) -> Result<Response<'a, T>, Self::Error> {
         Transport::request(&self.0, val, ctx).await
     }
 }
@@ -25,11 +25,11 @@ impl<T: MethodDef> Transport<T> for h2::client::Client {
     type Error = Error<ClientError>;
 
     #[inline]
-    async fn request(
+    async fn request<'a>(
         &self,
         val: &T::Input,
         ctx: &mut RequestContext,
-    ) -> Result<Response<T>, Self::Error> {
+    ) -> Result<Response<'a, T>, Self::Error> {
         Transport::request(
             &self.client().await.map_err(|e| e.map(ClientError::from))?,
             val,
@@ -43,11 +43,11 @@ impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
     type Error = Error<ClientError>;
 
     #[allow(clippy::too_many_lines)]
-    async fn request(
+    async fn request<'a>(
         &self,
         val: &T::Input,
         ctx: &mut RequestContext,
-    ) -> Result<Response<T>, Self::Error> {
+    ) -> Result<Response<'a, T>, Self::Error> {
         let len = val.encoded_len();
         let mut buf = BytePages::default();
         buf.put_u8(0); // compression

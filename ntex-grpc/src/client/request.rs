@@ -209,15 +209,15 @@ fn duration_to_grpc_timeout(duration: time::Duration) -> String {
         .expect("duration is unrealistically large")
 }
 
-pub struct Response<T: MethodDef> {
-    pub output: T::Output,
+pub struct Response<'a, T: MethodDef> {
+    pub output: T::Output<'a>,
     pub headers: HeaderMap,
     pub trailers: HeaderMap,
     pub req_size: usize,
     pub res_size: usize,
 }
 
-impl<T: MethodDef> Response<T> {
+impl<'a, T: MethodDef> Response<'a, T> {
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
@@ -239,7 +239,7 @@ impl<T: MethodDef> Response<T> {
     }
 }
 
-impl<T: MethodDef> ops::Deref for Response<T> {
+impl<'a, T: MethodDef> ops::Deref for Response<'a, T> {
     type Target = T::Output;
 
     fn deref(&self) -> &Self::Target {
@@ -247,13 +247,13 @@ impl<T: MethodDef> ops::Deref for Response<T> {
     }
 }
 
-impl<T: MethodDef> ops::DerefMut for Response<T> {
+impl<'a, T: MethodDef> ops::DerefMut for Response<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.output
     }
 }
 
-impl<T: MethodDef> fmt::Debug for Response<T>
+impl<'a, T: MethodDef> fmt::Debug for Response<'a, T>
 where
     T::Output: fmt::Debug,
 {
