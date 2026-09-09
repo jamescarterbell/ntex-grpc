@@ -101,7 +101,7 @@ impl ::ntex_grpc::MethodDef for GreeterSayHelloMethod {
     const PATH: ::ntex_grpc::ByteString =
         ::ntex_grpc::ByteString::from_static("/helloworld.Greeter/SayHello");
     type Input<'i> = HelloRequest;
-    type Output<'o> = HelloReply;
+    type Output = HelloReply;
 }
 
 mod _priv_impl_helloworld {

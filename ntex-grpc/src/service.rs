@@ -20,7 +20,7 @@ pub trait MethodDef {
     /// The owned variant of the input message.
     type Input: for<'i> Message<'i>;
 
-    /// The borrowed variant of the output message.
+    /// The owned variant of the output message.
     type Output: for<'o> Message<'o>;
 
     #[inline]

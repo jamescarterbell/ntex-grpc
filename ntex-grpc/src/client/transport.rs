@@ -6,7 +6,7 @@ use ntex_h2::{self as h2};
 use ntex_http::{HeaderMap, Method, header};
 
 use super::{Client, ClientError, Transport, request::RequestContext, request::Response};
-use crate::{DecodeError, GrpcStatus, Message, client::request::ResponseView, consts, service::MethodDef, utils::Data};
+use crate::{DecodeError, GrpcStatus, Message, consts, service::MethodDef, utils::Data};
 
 impl<T: MethodDef> Transport<T> for Client {
     type Error = Error<ClientError>;
@@ -20,15 +20,6 @@ impl<T: MethodDef> Transport<T> for Client {
     where T: 'c {
         Transport::request(&self.0, val, ctx).await
     }
-    
-    async fn request_view<'c>(
-        &'c self,
-        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
-        ctx: &mut RequestContext,
-    ) -> Result<ResponseView<'c, T>, Self::Error>
-    where T: 'c  {
-        Transport::request_view(&self.0, val, ctx).await
-    }
 }
 
 impl<T: MethodDef> Transport<T> for h2::client::Client {
@@ -40,26 +31,12 @@ impl<T: MethodDef> Transport<T> for h2::client::Client {
         val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
     ) -> Result<Response<T>, Self::Error> {
-        Ok(Transport::request(
+        Transport::request(
             &self.client().await.map_err(|e| e.map(ClientError::from))?,
             val,
             ctx,
-        ).await?
-        .upcast_lifetime())
-    }
-
-    #[inline]
-    async fn request_view<'c>(
-        &'c self,
-        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
-        ctx: &mut RequestContext,
-    ) -> Result<ResponseView<'c, T>, Self::Error> {
-        Ok(Transport::request_view(
-            &self.client().await.map_err(|e| e.map(ClientError::from))?,
-            val,
-            ctx,
-        ).await?
-        .upcast_lifetime())
+        )
+        .await
     }
 }
 
@@ -72,7 +49,7 @@ impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
         val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
     ) -> Result<Response<T>, Self::Error> {
-        let val: <T as MethodDef>::InputView<'c> = val.into();
+        let val: <<T as MethodDef>::Input as Message<'c>>::InputView<'c> = val.into();
         let len = val.encoded_len();
         let mut buf = BytePages::default();
         buf.put_u8(0); // compression
@@ -206,160 +183,6 @@ impl<T: MethodDef> Transport<T> for h2::client::SimpleClient {
                 return match <T::Output as Message>::read(&mut block) {
                     Ok(output) => Ok(Response {
                         output,
-                        trailers,
-                        req_size,
-                        headers: hdrs,
-                        res_size: data.len(),
-                    }),
-                    Err(e) => Err(Error::from(ClientError::Decode(e))),
-                };
-            }
-        }
-        .await
-        .map_err(|e| e.set_service(self.service()))
-    }
-
-    #[allow(clippy::too_many_lines)]
-    async fn request_view<'c>(
-        &'c self,
-        val: impl Into<<<T as MethodDef>::Input as Message<'c>>::InputView<'c>>,
-        ctx: &mut RequestContext,
-    ) -> Result<ResponseView<'c, T>, Self::Error> {
-        let val: <<<T as MethodDef>::Input as Message<'c>>::InputView<'c>> = val.into();
-        let len = val.encoded_len();
-        let mut buf = BytePages::default();
-        buf.put_u8(0); // compression
-        buf.put_u32(len as u32); // length
-        val.write(&mut buf);
-        let req_size = buf.len();
-
-        let mut hdrs = HeaderMap::new();
-        hdrs.append(header::CONTENT_TYPE, consts::HDRV_CT_GRPC);
-        hdrs.append(header::USER_AGENT, consts::HDRV_USER_AGENT);
-        hdrs.insert(header::TE, consts::HDRV_TRAILERS);
-        hdrs.insert(consts::GRPC_ENCODING, consts::IDENTITY);
-        hdrs.insert(consts::GRPC_ACCEPT_ENCODING, consts::IDENTITY);
-        for (key, val) in ctx.headers() {
-            hdrs.insert(key.clone(), val.clone());
-        }
-
-        // send request
-        let (snd_stream, rcv_stream) = self
-            .send(Method::POST, T::PATH, hdrs, false)
-            .await
-            .map_err(|e| e.map(ClientError::from))?;
-        if ctx.get_disconnect_on_drop() {
-            snd_stream.disconnect_on_drop();
-        }
-        snd_stream
-            .send_pages(buf, true)
-            .await
-            .map_err(|e| e.map(ClientError::from))?;
-
-        // read response
-        let mut status = None;
-        let mut hdrs = HeaderMap::default();
-        let mut trailers = HeaderMap::default();
-        let mut payload = Data::Empty;
-
-        async {
-            loop {
-                let Some(msg) = rcv_stream.recv().await else {
-                    return Err(Error::from(ClientError::UnexpectedEof(status, hdrs)));
-                };
-
-                match msg.kind {
-                    h2::MessageKind::Headers {
-                        headers,
-                        pseudo,
-                        eof,
-                    } => {
-                        if eof {
-                            // check grpc status
-                            match check_grpc_status(&headers) {
-                                Some(Ok(GrpcStatus::DeadlineExceeded)) => {
-                                    return Err(Error::from(ClientError::DeadlineExceeded(hdrs)));
-                                }
-                                Some(Ok(status)) if status != GrpcStatus::Ok => {
-                                    return Err(Error::from(ClientError::GrpcStatus(
-                                        status, headers,
-                                    )));
-                                }
-                                Some(Err(())) => {
-                                    return Err(Error::from(ClientError::Decode(
-                                        DecodeError::new("Cannot parse grpc status"),
-                                    )));
-                                }
-                                Some(Ok(_)) | None => {}
-                            }
-
-                            return Err(Error::from(ClientError::UnexpectedEof(
-                                pseudo.status,
-                                headers,
-                            )));
-                        }
-                        hdrs = headers;
-                        status = pseudo.status;
-                        continue;
-                    }
-                    h2::MessageKind::Data(data, _cap) => {
-                        payload.push(data);
-                        continue;
-                    }
-                    h2::MessageKind::Eof(data) => {
-                        match data {
-                            h2::StreamEof::Data(data) => {
-                                payload.push(data);
-                            }
-                            h2::StreamEof::Trailers(hdrs) => {
-                                // check grpc status
-                                match check_grpc_status(&hdrs) {
-                                    Some(Ok(GrpcStatus::Ok)) | None => Ok(()),
-                                    Some(Ok(GrpcStatus::DeadlineExceeded)) => {
-                                        return Err(Error::from(ClientError::DeadlineExceeded(
-                                            hdrs,
-                                        )));
-                                    }
-                                    Some(Ok(st)) => {
-                                        return Err(Error::from(ClientError::GrpcStatus(
-                                            st, hdrs,
-                                        )));
-                                    }
-                                    Some(Err(())) => Err(Error::from(ClientError::Decode(
-                                        DecodeError::new("Cannot parse grpc status"),
-                                    ))),
-                                }?;
-                                trailers = hdrs;
-                            }
-                            h2::StreamEof::Error(err) => {
-                                return Err(err.map(ClientError::Stream));
-                            }
-                        }
-                    }
-                    h2::MessageKind::Disconnect(err) => {
-                        return Err(err.map(ClientError::Operation));
-                    }
-                }
-
-                let mut data = payload.get();
-                match status {
-                    Some(st) => {
-                        if !st.is_success() {
-                            return Err(Error::from(ClientError::Response(Some(st), hdrs, data)));
-                        }
-                    }
-                    None => return Err(Error::from(ClientError::Response(None, hdrs, data))),
-                }
-                let _compressed = data.get_u8();
-                let len = data.get_u32();
-                let Some(mut block) = data.split_to_checked(len as usize) else {
-                    return Err(Error::from(ClientError::UnexpectedEof(None, hdrs)));
-                };
-
-                return match <T::OutputView<'c> as Message>::read(&mut block) {
-                    Ok(output) => Ok(ResponseView {
-                        output,
-                        data: block,
                         trailers,
                         req_size,
                         headers: hdrs,

@@ -10,7 +10,7 @@ mod transport;
 
 pub use self::request::{Request, RequestContext, Response};
 
-use crate::{client::request::ResponseView, encoding::DecodeError, service::MethodDef, status::GrpcStatus};
+use crate::{Message, encoding::DecodeError, service::MethodDef, status::GrpcStatus};
 
 pub trait Transport<T: MethodDef> {
     /// Errors produced by the transport.
@@ -18,16 +18,9 @@ pub trait Transport<T: MethodDef> {
 
     async fn request<'c>(
         &'c self,
-        args: impl Into<<T::Input<'_> as Message<'c>>::InputView<'c>>,
+        args: impl Into<<T::Input as Message<'c>>::InputView<'c>>,
         ctx: &mut RequestContext,
     ) -> Result<Response<T>, Self::Error>
-    where T: 'c;
-
-    async fn request_view<'c>(
-        &'c self,
-        args: impl Into<<T::Input<'_> as Message<'c>>::InputView<'c>>,
-        ctx: &mut RequestContext,
-    ) -> Result<ResponseView<'c, T>, Self::Error>
     where T: 'c;
 }
 

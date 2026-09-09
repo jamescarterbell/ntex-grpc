@@ -1,6 +1,5 @@
 use std::{convert::TryFrom, fmt, ops, time};
 
-use ntex_bytes::Bytes;
 use ntex_http::{HeaderMap, HeaderName, HeaderValue, error::Error as HttpError};
 use ntex_util::HashMap;
 
@@ -218,7 +217,7 @@ pub struct Response<T: MethodDef> {
     pub res_size: usize,
 }
 
-impl<'t, T: MethodDef> Response<T> {
+impl<T: MethodDef> Response<T> {
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
@@ -240,7 +239,7 @@ impl<'t, T: MethodDef> Response<T> {
     }
 }
 
-impl<'t, T: MethodDef> ops::Deref for Response<T> {
+impl<T: MethodDef> ops::Deref for Response<T> {
     type Target = T::Output;
 
     fn deref(&self) -> &Self::Target {
@@ -248,72 +247,15 @@ impl<'t, T: MethodDef> ops::Deref for Response<T> {
     }
 }
 
-impl<'t, T: MethodDef> ops::DerefMut for Response<T> {
+impl<T: MethodDef> ops::DerefMut for Response<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.output
     }
 }
 
-impl<'t, T: MethodDef> fmt::Debug for Response<T>
+impl<T: MethodDef> fmt::Debug for Response<T>
 where
     T::Output: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(format!("ResponseFor<{}>", T::NAME).as_str())
-            .field("output", &self.output)
-            .field("headers", &self.headers)
-            .field("trailers", &self.trailers)
-            .finish()
-    }
-}
-
-pub struct ResponseView<'t, T: MethodDef> {
-    pub data: Bytes,
-    pub output: <T::Output<'t> as Message<'t>>::OutputView<'t>,
-    pub headers: HeaderMap,
-    pub trailers: HeaderMap,
-    pub req_size: usize,
-    pub res_size: usize,
-}
-
-impl<'t, T: MethodDef> ResponseView<'t, T> {
-    #[inline]
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-
-    #[inline]
-    pub fn trailers(&self) -> &HeaderMap {
-        &self.trailers
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> <T::Output<'t> as Message<'t>>::OutputView<'t> {
-        self.output
-    }
-
-    #[inline]
-    pub fn into_parts(self) -> (<T::Output<'t> as Message<'t>>::OutputView<'t>, HeaderMap, HeaderMap) {
-        (self.output, self.headers, self.trailers)
-    }
-
-    #[inline]
-    pub(crate) fn upcast_lifetime<'n>(self) -> ResponseView<'n, T> {
-        unsafe { std::mem::transmute(self) }
-    }
-}
-
-impl<'t, T: MethodDef> ops::Deref for ResponseView<'t, T> {
-    type Target = <T::Output<'t> as Message<'t>>::OutputView<'t>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.output
-    }
-}
-
-impl<'t, T: MethodDef> fmt::Debug for ResponseView<'t, T>
-where
-    T::OutputView<'t>: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct(format!("ResponseFor<{}>", T::NAME).as_str())

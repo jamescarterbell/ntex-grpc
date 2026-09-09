@@ -14,12 +14,7 @@ use crate::encoding::{self, DecodeError};
 
 /// Protobuf struct read/write operations
 pub trait Message<'m>: Default + Sized + fmt::Debug {
-    type InputView<'a>: Message<'a, InputView<'a> = Self::InputView<'a>, OutputView<'a> = Self::OutputView<'a>>
-        + PartialEq
-        + 'a;
-    type OutputView<'a>: Message<'a, InputView<'a> = Self::InputView<'a>, OutputView<'a> = Self::OutputView<'a>>
-        + PartialEq
-        + 'a;
+    type InputView<'a>: Message<'a, InputView<'a> = Self::InputView<'a>> + PartialEq + 'a;
 
     /// Decodes an instance of the message from a buffer
     fn read(src: &'m mut Bytes) -> Result<Self, DecodeError>;
@@ -46,7 +41,6 @@ pub trait NativeType<'m>: PartialEq + Default + Sized + fmt::Debug {
     /// which is what allows borrowed views such as `&'a [T::InputView<'a>]` to
     /// be well-formed.
     type InputView<'a>: NativeType<'a, InputView<'a> = Self::InputView<'a>> + 'a;
-    type OutputView<'a>: NativeType<'a, OutputView<'a> = Self::OutputView<'a>> + 'a;
 
     #[inline]
     /// Returns the encoded length of the message without a length delimiter.
@@ -143,7 +137,6 @@ pub trait NativeType<'m>: PartialEq + Default + Sized + fmt::Debug {
 /// Protobuf struct read/write operations
 impl<'m> Message<'m> for () {
     type InputView<'a> = ();
-    type OutputView<'a> = ();
 
     fn encoded_len(&self) -> usize {
         0
@@ -160,7 +153,6 @@ impl<'m, T: Message<'m> + PartialEq> NativeType<'m> for T {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = <T as Message<'m>>::InputView<'a>;
-    type OutputView<'a> = <T as Message<'m>>::OutputView<'a>;
 
     fn value_len(&self) -> usize {
         Message::encoded_len(self)
@@ -182,7 +174,6 @@ impl NativeType<'_> for Bytes {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a [u8];
-    type OutputView<'a> = &'a [u8];
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -211,7 +202,6 @@ impl<'m> NativeType<'m> for &'m [u8] {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a [u8];
-    type OutputView<'a> = &'a [u8];
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -240,7 +230,6 @@ impl NativeType<'_> for String {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a str;
-    type OutputView<'a> = &'a str;
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -273,7 +262,6 @@ impl<'m> NativeType<'m> for &'m str {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a str;
-    type OutputView<'a> = &'a str;
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -306,7 +294,6 @@ impl NativeType<'_> for ByteString {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a str;
-    type OutputView<'a> = &'a str;
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -339,7 +326,6 @@ impl NativeType<'_> for Arc<str> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a str;
-    type OutputView<'a> = &'a str;
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -372,7 +358,6 @@ impl<'m, T: NativeType<'m>> NativeType<'m> for Option<T> {
     const TYPE: WireType = WireType::LengthDelimited;
     
     type InputView<'a> = Option<T::InputView<'a>>;
-    type OutputView<'a> = Option<T::OutputView<'a>>;
 
     #[inline]
     fn is_default(&self) -> bool {
@@ -426,7 +411,6 @@ impl NativeType<'_> for Vec<u8> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a [u8];
-    type OutputView<'a> = &'a [u8];
 
     #[inline]
     fn value_len(&self) -> usize {
@@ -455,7 +439,6 @@ impl<'m, T: NativeType<'m>> NativeType<'m> for Vec<T> {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a [T::InputView<'a>];
-    type OutputView<'a> = Vec<T::OutputView<'a>>;
     
     #[inline]
     /// Serialize field value
@@ -527,7 +510,6 @@ impl<'m, T: NativeType<'m>> NativeType<'m> for &'m [T] {
     const TYPE: WireType = WireType::LengthDelimited;
 
     type InputView<'a> = &'a [T::InputView<'a>];
-    type OutputView<'a> = Vec<T::OutputView<'a>>;
     
     #[inline]
     /// Serialize field value
@@ -603,7 +585,6 @@ macro_rules! hashmap {
             const TYPE: WireType = WireType::LengthDelimited;
 
             type InputView<'a> = $ty<<$key as NativeType<'m>>::InputView<'a>, V::InputView<'a>, S>;
-            type OutputView<'a> = $ty<<$key as NativeType<'m>>::OutputView<'a>, V::OutputView<'a>, S>;
 
             #[inline]
             /// Deserialize from the input
@@ -709,7 +690,6 @@ macro_rules! hashmap_str_key {
             const TYPE: WireType = WireType::LengthDelimited;
 
             type InputView<'a> = $ty<&'a str, V::InputView<'a>, S>;
-            type OutputView<'a> = $ty<&'a str, V::OutputView<'a>, S>;
 
             #[inline]
             fn merge(_: &mut Bytes) -> Result<Self, DecodeError> {
@@ -742,7 +722,6 @@ macro_rules! varint {
             const TYPE: WireType = WireType::Varint;
 
             type InputView<'a> = Self;
-            type OutputView<'a> = Self;
 
             #[inline]
             fn is_default(&self) -> bool {
@@ -793,7 +772,6 @@ macro_rules! fixed_width {
             const TYPE: WireType = $wire_type;
 
             type InputView<'a> = Self;
-            type OutputView<'a> = Self;
 
             #[inline]
             fn is_default(&self) -> bool {
@@ -863,19 +841,10 @@ mod tests {
         b: bool,
         opt: Option<&'a str>,
     }
-    
-    #[derive(Clone, PartialEq, Debug, Default)]
-    pub struct TestMessageOutputView<'a> {
-        f: f64,
-        props: HashMap<String, u32>,
-        b: bool,
-        opt: Option<&'a str>,
-    }
 
     impl<'m> Message<'m> for TestMessage {
     
         type InputView<'a> = TestMessageInputView<'a>;
-        type OutputView<'a> = TestMessageOutputView<'a>;
 
         fn write(&self, dst: &mut BytePages) {
             NativeType::serialize(&self.f, 1, DefaultValue::Default, dst);
@@ -913,45 +882,6 @@ mod tests {
     impl<'m> Message<'m> for TestMessageInputView<'m> {
     
         type InputView<'a> = TestMessageInputView<'a>;
-        type OutputView<'a> = TestMessageOutputView<'a>;
-
-        fn write(&self, dst: &mut BytePages) {
-            NativeType::serialize(&self.f, 1, DefaultValue::Default, dst);
-            NativeType::serialize(&self.props, 2, DefaultValue::Default, dst);
-            NativeType::serialize(&self.b, 3, DefaultValue::Default, dst);
-            NativeType::serialize(&self.opt, 4, DefaultValue::Default, dst);
-        }
-
-        #[inline]
-        fn read(src: &mut Bytes) -> Result<Self, DecodeError> {
-            let mut msg = Self::default();
-            while !src.is_empty() {
-                let (tag, wire_type) = encoding::decode_key(src)?;
-                match tag {
-                    1 => msg.f = NativeType::deserialize(tag, wire_type, src)?,
-                    2 => msg.props = NativeType::deserialize(tag, wire_type, src)?,
-                    3 => msg.b = NativeType::deserialize(tag, wire_type, src)?,
-                    4 => msg.opt = NativeType::deserialize(tag, wire_type, src)?,
-                    _ => encoding::skip_field(wire_type, tag, src)?,
-                }
-            }
-            Ok(msg)
-        }
-
-        #[allow(clippy::identity_op)]
-        #[inline]
-        fn encoded_len(&self) -> usize {
-            0 + NativeType::serialized_len(&self.f, 1, DefaultValue::Default)
-                + NativeType::serialized_len(&self.props, 2, DefaultValue::Default)
-                + NativeType::serialized_len(&self.b, 3, DefaultValue::Default)
-                + NativeType::serialized_len(&self.opt, 4, DefaultValue::Default)
-        }
-    }
-
-    impl<'m> Message<'m> for TestMessageOutputView<'m> {
-    
-        type InputView<'a> = TestMessageInputView<'a>;
-        type OutputView<'a> = TestMessageOutputView<'a>;
 
         fn write(&self, dst: &mut BytePages) {
             NativeType::serialize(&self.f, 1, DefaultValue::Default, dst);
